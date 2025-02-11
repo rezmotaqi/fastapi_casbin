@@ -2,8 +2,8 @@
 import casbin
 from fastapi import Request, HTTPException
 
-from fastapi_rbac.app.services.cache import redis_cache
-from fastapi_rbac.app.tools.mongo import mongo_service
+from app.services.cache import redis_cache
+from app.tools.mongo import mongo_service
 
 
 class CasbinService:
@@ -42,7 +42,7 @@ class CasbinService:
 			roles = cached_roles.split(",")
 		else:
 			# Fetch roles from MongoDB
-			user = await mongo_service.get_db().users.find_one({"email": email})
+			user = await mongo_service.db.users.find_one({"email": email})
 			roles = user["roles"] if user else []
 			await redis_cache.set(f"user_roles:{email}", ",".join(
 				roles),

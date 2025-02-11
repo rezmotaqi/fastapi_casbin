@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from fastapi_rbac.app.services.cache import RedisCache
+from app.services.cache import RedisCache
 
 router = APIRouter()
 

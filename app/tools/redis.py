@@ -1,7 +1,7 @@
 import redis.asyncio as redis
 
-from fastapi_rbac.app.config import config
-from fastapi_rbac.app.interfaces.singleton import BaseSingleton
+from app.config import config
+from app.interfaces.singleton import BaseSingleton
 
 
 # file

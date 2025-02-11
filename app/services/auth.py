@@ -4,9 +4,9 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import HTTPException
 
-from fastapi_rbac.app.config import config
-from fastapi_rbac.app.interfaces.auth import AuthInterface
-from fastapi_rbac.app.tools.mongo import mongo_service
+from app.config import config
+from app.interfaces.auth import AuthInterface
+from app.tools.mongo import mongo_service
 
 
 class AuthService(AuthInterface):
@@ -14,7 +14,7 @@ class AuthService(AuthInterface):
 
 	async def get_user_roles(self, email: str):
 		"""Fetch user roles from MongoDB"""
-		user = await mongo_service.get_db().users.find_one({"email": email})
+		user = await mongo_service.db.users.find_one({"email": email})
 		return user["roles"] if user else []
 
 	async def create_access_token(self, data: dict):

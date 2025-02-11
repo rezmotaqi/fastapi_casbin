@@ -1,8 +1,8 @@
 # Redis Caching Service
 from fastapi import HTTPException
 
-from fastapi_rbac.app.interfaces.cache import CacheInterface
-from fastapi_rbac.app.tools.redis import redis_service
+from app.interfaces.cache import CacheInterface
+from app.tools.redis import redis_service
 
 
 class RedisCache(CacheInterface):
