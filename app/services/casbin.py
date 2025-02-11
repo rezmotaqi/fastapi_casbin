@@ -46,7 +46,7 @@ class CasbinService:
 			roles = user["roles"] if user else []
 			await redis_cache.set(f"user_roles:{email}", ",".join(
 				roles),
-										expiration=300)
+								  expiration=300)
 
 		# Check permissions for each role
 		for role in roles:
