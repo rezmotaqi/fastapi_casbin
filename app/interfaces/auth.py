@@ -1,6 +1,8 @@
 # Interface for authentication
 from abc import ABC, abstractmethod
 
+from fastapi import Header
+
 
 class AuthInterface(ABC):
 	"""Abstract class for authentication services"""
@@ -14,5 +16,6 @@ class AuthInterface(ABC):
 		pass
 
 	@abstractmethod
-	async def verify_token(self, token: str):
+	async def verify_token(self, authorization: Header(...)):
 		pass
+

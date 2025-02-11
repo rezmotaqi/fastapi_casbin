@@ -1,10 +1,10 @@
 # Casbin Authorization Service
 import casbin
-from fastapi import Request, HTTPException
+from fastapi import Request, HTTPException, Depends
 
 from app.services.cache import redis_cache
 from app.tools.mongo import mongo_service
-
+from app.services.auth import auth_service
 
 class CasbinService:
 	"""Handles role-based access control using Casbin with MongoDB"""
@@ -32,7 +32,7 @@ class CasbinService:
 		self.enforcer = casbin.Enforcer("casbin_model.conf")
 		await self.load_policy()
 
-	async def authorize(self, request: Request, token_data: dict):
+	async def authorize(self, request: Request, token_data: dict = Depends(auth_service.verify_token)):
 		"""Check if user is authorized based on Casbin policies."""
 		email = token_data.get("sub")
 
