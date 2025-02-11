@@ -14,5 +14,5 @@ user_service = UserService()
 
 @router.post("/", dependencies=[Depends(casbin_service.authorize)])
 async def create_user(data: CreateUser, token_data: dict = Depends(auth_service.verify_token)):
-	user = await user_service.create_user(data=data)
+	await user_service.create_user(data=data)
 	return {"message": "User created successfully"}
