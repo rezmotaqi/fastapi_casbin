@@ -1,59 +1,85 @@
-# Casbin Authorization Service
-import casbin
-from fastapi import Request, HTTPException, Depends
+import tempfile
 
-from app.services.cache import redis_cache
-from app.tools.mongo import mongo_service
+import casbin
+from fastapi import Request, Depends, HTTPException
+
 from app.services.auth import auth_service
+from app.tools.mongo import mongo_service
+
 
 class CasbinService:
 	"""Handles role-based access control using Casbin with MongoDB"""
 
 	def __init__(self):
-		self.enforcer = None  # Casbin enforcer will be initialized later
+		self.enforcer = None
+		self.db = mongo_service.db
 
-	async def load_policy(self):
-		"""Load Casbin policies from MongoDB dynamically"""
-		policies = mongo_service.db.casbin_policies.find({})
-		for policy in await policies.to_list(length=1000):
-			self.enforcer.add_policy(policy["sub"], policy["obj"],
-									 policy["act"])
+	def get_default_model(self):
+		"""Returns a basic Casbin model as a string"""
+		return """
+        [request_definition]
+        r = sub, obj, act
+
+        [policy_definition]
+        p = sub, obj, act
+
+        [role_definition]
+        g = _, _
+
+        [policy_effect]
+        e = some(where (p.eft == allow))
+
+        [matchers]
+        m = r.sub == p.sub && r.obj == p.obj && r.act == p.act
+        """
 
 	async def init_casbin(self):
-		"""Dynamically fetch Casbin model from MongoDB instead of a static
-		file"""
-		model_data = await mongo_service.db.casbin_models.find_one({})
-		if not model_data:
-			raise Exception("Casbin model not found in MongoDB")
+		"""Initialize Casbin with a model and policy data from MongoDB"""
+		model_text = self.get_default_model()
 
-		with open("casbin_model.conf", "w") as f:
-			f.write(model_data["model_text"])
+		# Create a temporary file to store the model
+		with tempfile.NamedTemporaryFile(delete=False, mode='w',
+										 encoding='utf-8') as model_file:
+			model_file.write(model_text)
+			model_path = model_file.name  # Get the path of the temporary file
 
-		self.enforcer = casbin.Enforcer("casbin_model.conf")
-		await self.load_policy()
+		self.enforcer = casbin.Enforcer(model_path, None)
 
-	async def authorize(self, request: Request, token_data: dict = Depends(auth_service.verify_token)):
+	async def load_policy(self):
+		"""Load Casbin policies from MongoDB"""
+		policies = await self.db.casbin_policies.find().to_list(length=1000)
+		await self.init_casbin()
+		for policy in policies:
+			self.enforcer.add_policy(policy["role"], policy["resource"],
+									 policy["action"])
+
+	async def authorize(self, request: Request,
+						token_data: dict = Depends(
+							auth_service.verify_token)):
 		"""Check if user is authorized based on Casbin policies."""
+
+		await self.load_policy()
 		email = token_data.get("sub")
+		roles = await self.get_user_roles(email)
 
-		# Check cached roles first
-		cached_roles = await redis_cache.get(f"user_roles:{email}")
-		if cached_roles:
-			roles = cached_roles.split(",")
-		else:
-			# Fetch roles from MongoDB
-			user = await mongo_service.db.users.find_one({"email": email})
-			roles = user["roles"] if user else []
-			await redis_cache.set(f"user_roles:{email}", ",".join(
-				roles),
-								  expiration=300)
+		resource = request.url.path.rstrip('/')
+		action = request.method
+		print(
+			f"Checking authorization for roles: {roles} on resource: "
+			f"{resource} with action: {action}")
 
-		# Check permissions for each role
 		for role in roles:
-			if self.enforcer.enforce(role, request.url.path, request.method):
-				return token_data
+			if self.enforcer.enforce(role, resource, action):
+				return token_data  # User is authorized to access this
+		# resource
 
 		raise HTTPException(status_code=403, detail="Access denied")
 
+	async def get_user_roles(self, email: str):
+		"""Fetch user roles from MongoDB"""
+		user = await self.db.users.find_one({"email": email})
+		return user["roles"] if user else []
 
-casbin_service = CasbinService()
+
+def get_casbin_service():
+	return CasbinService()
