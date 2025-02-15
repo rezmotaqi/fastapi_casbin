@@ -37,4 +37,5 @@ class AuthService(AuthInterface):
             raise HTTPException(status_code=401, detail="Invalid token")
 
 
-auth_service = AuthService()
+def get_auth_service():
+    return AuthService()

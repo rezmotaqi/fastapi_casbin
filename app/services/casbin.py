@@ -3,7 +3,7 @@ import tempfile
 import casbin
 from fastapi import Request, Depends, HTTPException
 
-from app.services.auth import auth_service
+from app.services.auth import get_auth_service
 from app.tools.mongo import mongo_service
 
 
@@ -55,7 +55,7 @@ class CasbinService:
 
 	async def authorize(self, request: Request,
 						token_data: dict = Depends(
-							auth_service.verify_token)):
+							get_auth_service().verify_token)):
 		"""Check if user is authorized based on Casbin policies."""
 
 		await self.load_policy()
